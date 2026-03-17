@@ -1,49 +1,132 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Layout } from '../components/Layout';
-import { Heart, Gift, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Heart, Gift, ArrowUpRight, ArrowDownLeft, ShoppingBag, Wallet, History, Send, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { bn } from 'date-fns/locale';
 
+const CHOCOLATE_PRICE = 10; // 10 BDT per chocolate
+const ADMIN_BKASH = "01700000000"; // Placeholder
+
 export const Chocolates: React.FC = () => {
   const { user, profile } = useAuth();
+  const [activeTab, setActiveTab] = useState<'history' | 'buy' | 'withdraw'>('history');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Form states
+  const [buyAmount, setBuyAmount] = useState(10);
+  const [trxId, setTrxId] = useState('');
+  const [bkashNumber, setBkashNumber] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState(10);
+  const [withdrawBkash, setWithdrawBkash] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (!user) return;
 
-    // Fetch letters with chocolates where user is sender or receiver
-    const q = query(
+    // Fetch letters with chocolates
+    const qLetters = query(
       collection(db, 'letters'),
       where('chocolateAmount', '>', 0)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs
-        .map(doc => ({ ...doc.data(), id: doc.id }))
-        .filter((l: any) => l.senderId === user.uid || l.receiverId === user.uid)
-        .sort((a: any, b: any) => {
+    // Fetch manual transactions
+    const qManual = query(
+      collection(db, 'transactions'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribeLetters = onSnapshot(qLetters, (snapshot) => {
+      const letterData = snapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id, source: 'letter' }))
+        .filter((l: any) => l.senderId === user.uid || l.receiverId === user.uid);
+      
+      const unsubscribeManual = onSnapshot(qManual, (manualSnapshot) => {
+        const manualData = manualSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, source: 'manual' }));
+        
+        const combined = [...letterData, ...manualData].sort((a: any, b: any) => {
           const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
           const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
           return timeB - timeA;
         });
-      
-      setTransactions(data);
-      setLoading(false);
+
+        setTransactions(combined);
+        setLoading(false);
+      });
+      return () => unsubscribeManual();
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeLetters();
   }, [user]);
+
+  const handleBuy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !profile || !trxId || !bkashNumber) return;
+    setSubmitting(true);
+
+    try {
+      await addDoc(collection(db, 'transactions'), {
+        userId: user.uid,
+        userName: `${profile.firstName} ${profile.lastName}`,
+        type: 'buy',
+        amount: Number(buyAmount),
+        cost: buyAmount * CHOCOLATE_PRICE,
+        bkashNumber,
+        transactionId: trxId,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      setSuccess(true);
+      setTrxId('');
+      setBkashNumber('');
+    } catch (err) {
+      console.error(err);
+      alert('রিকোয়েস্ট পাঠাতে সমস্যা হয়েছে।');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !profile || !withdrawBkash) return;
+    if (withdrawAmount > (profile.chocolateBalance || 0)) {
+      alert('আপনার পর্যাপ্ত ব্যালেন্স নেই!');
+      return;
+    }
+    setSubmitting(true);
+
+    try {
+      await addDoc(collection(db, 'transactions'), {
+        userId: user.uid,
+        userName: `${profile.firstName} ${profile.lastName}`,
+        type: 'withdraw',
+        amount: Number(withdrawAmount),
+        bkashNumber: withdrawBkash,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      setSuccess(true);
+      setWithdrawBkash('');
+    } catch (err) {
+      console.error(err);
+      alert('রিকোয়েস্ট পাঠাতে সমস্যা হয়েছে।');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto space-y-12">
+      <div className="max-w-4xl mx-auto space-y-12 pb-20">
+        {/* Balance Card */}
         <div className="bg-primary rounded-none p-12 md:p-20 text-white shadow-2xl relative overflow-hidden border-8 border-double border-white/10 m-2">
-          {/* Floating Hearts Animation */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {[...Array(10)].map((_, i) => (
               <div
@@ -82,76 +165,248 @@ export const Chocolates: React.FC = () => {
           <Heart className="absolute -right-16 -bottom-16 w-96 h-96 text-white/5 rotate-12" fill="currentColor" />
         </div>
 
-        <div className="space-y-10">
-          <div className="flex items-center justify-between border-b border-primary/10 pb-8">
-            <div className="space-y-2">
-              <h2 className="text-4xl font-display font-bold text-primary italic">উপহারের স্মৃতিচারণ</h2>
-              <p className="text-primary/40 font-serif italic">প্রতিটি উপহার একটি সুন্দর গল্পের শুরু...</p>
-            </div>
-            <Gift className="text-primary/10" size={56} />
-          </div>
+        {/* Tabs */}
+        <div className="flex border-b border-primary/10">
+          <button
+            onClick={() => { setActiveTab('history'); setSuccess(false); }}
+            className={`flex-1 py-6 flex items-center justify-center gap-3 font-display font-bold tracking-widest text-xs uppercase transition-all ${
+              activeTab === 'history' ? 'text-primary border-b-2 border-primary' : 'text-primary/30 hover:text-primary/60'
+            }`}
+          >
+            <History size={16} />
+            ইতিহাস
+          </button>
+          <button
+            onClick={() => { setActiveTab('buy'); setSuccess(false); }}
+            className={`flex-1 py-6 flex items-center justify-center gap-3 font-display font-bold tracking-widest text-xs uppercase transition-all ${
+              activeTab === 'buy' ? 'text-primary border-b-2 border-primary' : 'text-primary/30 hover:text-primary/60'
+            }`}
+          >
+            <ShoppingBag size={16} />
+            ক্রয় করুন
+          </button>
+          <button
+            onClick={() => { setActiveTab('withdraw'); setSuccess(false); }}
+            className={`flex-1 py-6 flex items-center justify-center gap-3 font-display font-bold tracking-widest text-xs uppercase transition-all ${
+              activeTab === 'withdraw' ? 'text-primary border-b-2 border-primary' : 'text-primary/30 hover:text-primary/60'
+            }`}
+          >
+            <Wallet size={16} />
+            উত্তোলন
+          </button>
+        </div>
 
-          <div className="card-nostalgic !p-0 overflow-hidden border-primary/5">
-            {transactions.length === 0 ? (
-              <div className="p-24 text-center space-y-6">
-                <Heart className="mx-auto text-primary/10" size={64} />
-                <div className="text-primary/40 italic font-serif text-2xl">
-                  এখনো কোনো উপহারের স্মৃতি জমা হয়নি...
-                </div>
-                <p className="text-primary/30 font-serif italic">প্রিয়জনকে চিঠি পাঠিয়ে ভালোবাসার বিনিময় শুরু করুন।</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-primary/5">
-                {transactions.map((t, index) => (
-                  <motion.div 
-                    key={t.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="p-10 flex items-center justify-between hover:bg-primary/[0.02] transition-all group"
-                  >
-                    <div className="flex items-center gap-8">
-                      <div className={`w-16 h-16 rounded-full flex items-center justify-center border-2 transition-transform group-hover:scale-110 ${
-                        t.senderId === user?.uid ? 'bg-accent/5 border-accent/20 text-accent' : 'bg-primary/5 border-primary/20 text-primary'
-                      }`}>
-                        {t.senderId === user?.uid ? <ArrowUpRight size={28} /> : <ArrowDownLeft size={28} />}
-                      </div>
-                      <div>
-                        <p className="font-display font-bold text-2xl text-primary italic">
-                          {t.senderId === user?.uid ? 'ভালোবাসা পাঠানো হয়েছে' : 'ভালোবাসা প্রাপ্তি'}
-                        </p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <p className="text-xs text-primary/40 uppercase tracking-[0.2em] font-bold">
-                            {format(t.createdAt?.toDate() || new Date(), 'dd MMMM, yyyy', { locale: bn })}
+        <AnimatePresence mode="wait">
+          {activeTab === 'history' && (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-10"
+            >
+              <div className="card-nostalgic !p-0 overflow-hidden border-primary/5">
+                {transactions.length === 0 ? (
+                  <div className="p-24 text-center space-y-6">
+                    <Heart className="mx-auto text-primary/10" size={64} />
+                    <div className="text-primary/40 italic font-serif text-2xl">
+                      এখনো কোনো উপহারের স্মৃতি জমা হয়নি...
+                    </div>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-primary/5">
+                    {transactions.map((t, index) => (
+                      <div key={t.id} className="p-10 flex items-center justify-between hover:bg-primary/[0.02] transition-all group">
+                        <div className="flex items-center gap-8">
+                          <div className={`w-16 h-16 rounded-full flex items-center justify-center border-2 ${
+                            (t.source === 'letter' && t.senderId === user?.uid) || (t.source === 'manual' && t.type === 'withdraw')
+                              ? 'bg-accent/5 border-accent/20 text-accent' 
+                              : 'bg-primary/5 border-primary/20 text-primary'
+                          }`}>
+                            {(t.source === 'letter' && t.senderId === user?.uid) || (t.source === 'manual' && t.type === 'withdraw')
+                              ? <ArrowUpRight size={28} /> : <ArrowDownLeft size={28} />}
+                          </div>
+                          <div>
+                            <p className="font-display font-bold text-2xl text-primary italic">
+                              {t.source === 'letter' 
+                                ? (t.senderId === user?.uid ? 'ভালোবাসা পাঠানো হয়েছে' : 'ভালোবাসা প্রাপ্তি')
+                                : (t.type === 'buy' ? 'চকলেট ক্রয় (বিকাশ)' : 'চকলেট উত্তোলন (বিকাশ)')}
+                            </p>
+                            <p className="text-xs text-primary/40 uppercase tracking-[0.2em] font-bold mt-1">
+                              {format(t.createdAt?.toDate() || new Date(), 'dd MMMM, yyyy', { locale: bn })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                          <p className={`text-4xl font-display font-bold italic ${
+                            (t.source === 'letter' && t.senderId === user?.uid) || (t.source === 'manual' && t.type === 'withdraw')
+                              ? 'text-accent' : 'text-primary'
+                          }`}>
+                            {(t.source === 'letter' && t.senderId === user?.uid) || (t.source === 'manual' && t.type === 'withdraw')
+                              ? '-' : '+'}{t.chocolateAmount || t.amount}
                           </p>
-                          <span className="w-1 h-1 bg-primary/20 rounded-full"></span>
-                          <p className="text-xs text-primary/30 italic font-serif">একটি মিষ্টি মুহূর্ত</p>
+                          <p className={`text-[10px] font-bold uppercase tracking-widest ${
+                            t.status === 'approved' || t.chocolateStatus === 'accepted' ? 'text-emerald-500' :
+                            t.status === 'rejected' || t.chocolateStatus === 'rejected' ? 'text-accent' : 'text-primary/30'
+                          }`}>
+                            {t.status === 'approved' || t.chocolateStatus === 'accepted' ? 'সফল' :
+                             t.status === 'rejected' || t.chocolateStatus === 'rejected' ? 'ব্যর্থ' : 'অপেক্ষমান'}
+                          </p>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right space-y-3">
-                      <div className="flex items-center justify-end gap-3">
-                        <Heart size={16} className={t.senderId === user?.uid ? 'text-accent/40' : 'text-primary/40'} fill="currentColor" />
-                        <p className={`text-4xl font-display font-bold italic ${
-                          t.senderId === user?.uid ? 'text-accent' : 'text-primary'
-                        }`}>
-                          {t.senderId === user?.uid ? '-' : '+'}{t.chocolateAmount}
-                        </p>
-                      </div>
-                      <p className={`text-[10px] uppercase font-bold px-4 py-1.5 tracking-[0.2em] border ${
-                        t.chocolateStatus === 'accepted' ? 'bg-primary/5 text-primary border-primary/20' : 
-                        t.chocolateStatus === 'rejected' ? 'bg-accent/5 text-accent border-accent/20' : 'bg-paper border-primary/10 text-primary/40'
-                      }`}>
-                        {t.chocolateStatus === 'accepted' ? 'গৃহীত' : 
-                         t.chocolateStatus === 'rejected' ? 'প্রত্যাখ্যাত' : 'অপেক্ষমান'}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'buy' && (
+            <motion.div
+              key="buy"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-2xl mx-auto"
+            >
+              {success ? (
+                <div className="card-nostalgic p-20 text-center space-y-8">
+                  <CheckCircle2 size={80} className="mx-auto text-emerald-500" />
+                  <div className="space-y-4">
+                    <h2 className="text-3xl font-display font-bold text-primary italic">রিকোয়েস্ট পাঠানো হয়েছে!</h2>
+                    <p className="text-primary/60 font-serif italic">অ্যাডমিন আপনার পেমেন্ট ভেরিফাই করলে চকলেট যোগ করা হবে।</p>
+                  </div>
+                  <button onClick={() => setSuccess(false)} className="btn-primary px-12 py-4">আরও কিনুন</button>
+                </div>
+              ) : (
+                <form onSubmit={handleBuy} className="card-nostalgic space-y-10">
+                  <div className="space-y-6">
+                    <h3 className="text-3xl font-display font-bold text-primary italic">চকলেট ক্রয় করুন</h3>
+                    <div className="p-6 bg-accent/5 border border-accent/10 rounded-none space-y-2">
+                      <p className="text-xs font-bold uppercase tracking-widest text-accent/60">বিকাশ পেমেন্ট ইনস্ট্রাকশন</p>
+                      <p className="text-primary/80 font-serif italic">নিচের নাম্বারে সেন্ড মানি করুন:</p>
+                      <p className="text-2xl font-mono font-bold text-primary">{ADMIN_BKASH}</p>
+                      <p className="text-xs text-primary/40 italic">১টি চকলেট = {CHOCOLATE_PRICE} টাকা</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-widest text-primary/40">চকলেটের পরিমাণ</label>
+                      <input
+                        type="number"
+                        min="10"
+                        value={buyAmount}
+                        onChange={(e) => setBuyAmount(Number(e.target.value))}
+                        className="input-nostalgic text-3xl font-display"
+                        required
+                      />
+                      <p className="text-right text-sm font-serif italic text-primary/60">মোট খরচ: {buyAmount * CHOCOLATE_PRICE} টাকা</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-widest text-primary/40">আপনার বিকাশ নাম্বার</label>
+                      <input
+                        type="text"
+                        placeholder="01XXXXXXXXX"
+                        value={bkashNumber}
+                        onChange={(e) => setBkashNumber(e.target.value)}
+                        className="input-nostalgic"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-widest text-primary/40">ট্রানজেকশন আইডি (TrxID)</label>
+                      <input
+                        type="text"
+                        placeholder="ABC123XYZ"
+                        value={trxId}
+                        onChange={(e) => setTrxId(e.target.value)}
+                        className="input-nostalgic font-mono"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full btn-primary py-6 text-xl flex items-center justify-center gap-4"
+                  >
+                    <Send size={24} />
+                    রিকোয়েস্ট পাঠান
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === 'withdraw' && (
+            <motion.div
+              key="withdraw"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-2xl mx-auto"
+            >
+              {success ? (
+                <div className="card-nostalgic p-20 text-center space-y-8">
+                  <CheckCircle2 size={80} className="mx-auto text-emerald-500" />
+                  <div className="space-y-4">
+                    <h2 className="text-3xl font-display font-bold text-primary italic">উত্তোলন রিকোয়েস্ট সফল!</h2>
+                    <p className="text-primary/60 font-serif italic">অ্যাডমিন আপনার রিকোয়েস্ট ভেরিফাই করে টাকা পাঠিয়ে দেবেন।</p>
+                  </div>
+                  <button onClick={() => setSuccess(false)} className="btn-primary px-12 py-4">ঠিক আছে</button>
+                </div>
+              ) : (
+                <form onSubmit={handleWithdraw} className="card-nostalgic space-y-10">
+                  <div className="space-y-6">
+                    <h3 className="text-3xl font-display font-bold text-primary italic">চকলেট উত্তোলন করুন</h3>
+                    <p className="text-primary/60 font-serif italic">আপনার জমানো চকলেট বিকাশের মাধ্যমে টাকায় রূপান্তর করুন।</p>
+                  </div>
+
+                  <div className="space-y-8">
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-widest text-primary/40">উত্তোলনের পরিমাণ</label>
+                      <input
+                        type="number"
+                        min="10"
+                        max={profile?.chocolateBalance || 0}
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(Number(e.target.value))}
+                        className="input-nostalgic text-3xl font-display"
+                        required
+                      />
+                      <p className="text-right text-sm font-serif italic text-primary/60">আপনি পাবেন: {withdrawAmount * CHOCOLATE_PRICE} টাকা</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-widest text-primary/40">বিকাশ নাম্বার (যেখানে টাকা নেবেন)</label>
+                      <input
+                        type="text"
+                        placeholder="01XXXXXXXXX"
+                        value={withdrawBkash}
+                        onChange={(e) => setWithdrawBkash(e.target.value)}
+                        className="input-nostalgic"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting || (profile?.chocolateBalance || 0) < withdrawAmount}
+                    className="w-full btn-primary py-6 text-xl flex items-center justify-center gap-4"
+                  >
+                    <Wallet size={24} />
+                    উত্তোলন রিকোয়েস্ট পাঠান
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </Layout>
   );

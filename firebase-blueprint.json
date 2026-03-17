@@ -53,6 +53,24 @@
         "allowSearch": { "type": "boolean" }
       },
       "required": ["userId", "firstName", "lastName", "allowSearch"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial transactions for buying or withdrawing chocolates",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "type": { "type": "string", "enum": ["buy", "withdraw"] },
+        "amount": { "type": "integer" },
+        "cost": { "type": "number" },
+        "bkashNumber": { "type": "string" },
+        "transactionId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "amount", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -67,6 +85,10 @@
     "/search_index/{phone}": {
       "schema": "SearchIndex",
       "description": "Search index by phone number"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Transaction logs"
     }
   }
 }

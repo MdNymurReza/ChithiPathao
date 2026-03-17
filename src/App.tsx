@@ -13,6 +13,7 @@ import { Profile } from './pages/Profile';
 import { Chocolates } from './pages/Chocolates';
 import { PostOffice } from './pages/PostOffice';
 import { Stamps } from './pages/Stamps';
+import { AdminDashboard } from './pages/AdminDashboard';
 
 export default function App() {
   return (
@@ -85,6 +86,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Stamps />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
               </ProtectedRoute>
             }
           />

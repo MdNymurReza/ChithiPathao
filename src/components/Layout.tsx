@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User, PenTool, BookOpen, Heart, Bike, Award } from 'lucide-react';
+import { LogOut, User, PenTool, BookOpen, Heart, Bike, Award, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -16,6 +16,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     navigate('/login');
   };
 
+  const isAdmin = profile?.role === 'admin' || user?.email === 'mreza2420349@bscse.uiu.ac.bd';
+
   const navItems = [
     { path: '/dashboard', icon: BookOpen, label: 'চিঠির তাক' },
     { path: '/write-letter', icon: PenTool, label: 'চিঠি লিখুন' },
@@ -24,6 +26,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     { path: '/chocolates', icon: Heart, label: 'চকলেট' },
     { path: '/profile', icon: User, label: 'প্রোফাইল' },
   ];
+
+  if (isAdmin) {
+    navItems.push({ path: '/admin', icon: ShieldCheck, label: 'অ্যাডমিন' });
+  }
 
   return (
     <div className="min-h-screen bg-paper font-sans text-ink">
