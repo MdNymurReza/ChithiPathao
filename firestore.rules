@@ -1,0 +1,142 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields:
+    //   - firstName: string (required)
+    //   - lastName: string (required)
+    //   - email: string (required, email format)
+    //   - phone: string (required)
+    //   - address: string (optional)
+    //   - allowSearch: bool (required)
+    //   - chocolateBalance: int (required)
+    //   - createdAt: timestamp (required)
+    //   - blockedUsers: list of strings (optional)
+    //
+    // Collection: letters
+    // Fields:
+    //   - senderId: string (required)
+    //   - receiverId: string (required)
+    //   - content: string (required)
+    //   - preview: string (required)
+    //   - isAnonymous: bool (required)
+    //   - chocolateAmount: int (required)
+    //   - chocolateStatus: string (required, enum: none, pending, accepted, rejected)
+    //   - status: string (required, enum: sent, delivered)
+    //   - createdAt: timestamp (required)
+    //   - deliveryAt: timestamp (optional)
+    //
+    // Collection: search_index
+    // Fields:
+    //   - userId: string (required)
+    //   - firstName: string (required)
+    //   - lastName: string (required)
+    //   - allowSearch: bool (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(data, allowedFields) {
+      return data.keys().hasOnly(allowedFields);
+    }
+
+    function hasRequiredFields(data, requiredFields) {
+      return data.keys().hasAll(requiredFields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(data, ['firstName', 'lastName', 'email', 'phone', 'allowSearch', 'chocolateBalance', 'createdAt']) &&
+             data.firstName is string && data.firstName.size() > 0 && data.firstName.size() < 100 &&
+             data.lastName is string && data.lastName.size() > 0 && data.lastName.size() < 100 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.phone is string && (data.phone.size() == 0 || (data.phone.size() >= 10 && data.phone.size() <= 15)) &&
+             data.allowSearch is bool &&
+             data.chocolateBalance is int && data.chocolateBalance >= 0 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidLetter(data) {
+      return hasRequiredFields(data, ['senderId', 'receiverId', 'content', 'preview', 'isAnonymous', 'chocolateAmount', 'chocolateStatus', 'status', 'createdAt']) &&
+             data.senderId == request.auth.uid &&
+             data.receiverId is string &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 10000 &&
+             data.preview is string && data.preview.size() > 0 && data.preview.size() < 200 &&
+             data.isAnonymous is bool &&
+             data.chocolateAmount is int && data.chocolateAmount >= 0 &&
+             data.chocolateStatus in ['none', 'pending', 'accepted', 'rejected'] &&
+             data.status in ['sent', 'delivered'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidSearchIndex(data) {
+      return hasRequiredFields(data, ['userId', 'firstName', 'lastName', 'allowSearch']) &&
+             data.userId == request.auth.uid &&
+             data.firstName is string &&
+             data.lastName is string &&
+             data.allowSearch is bool;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.chocolateBalance == 0;
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                    request.resource.data.email == resource.data.email &&
+                    request.resource.data.createdAt == resource.data.createdAt &&
+                    request.resource.data.chocolateBalance == resource.data.chocolateBalance;
+    }
+
+    match /letters/{letterId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.receiverId);
+      allow create: if isAuthenticated() && isValidLetter(request.resource.data);
+      allow update: if isAuthenticated() && (
+        // Receiver can update chocolateStatus
+        (request.auth.uid == resource.data.receiverId && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chocolateStatus']) &&
+         request.resource.data.chocolateStatus in ['accepted', 'rejected']) ||
+        // System/Sender can update status (though usually system does it, here we allow sender for simplicity of simulation)
+        (request.auth.uid == resource.data.senderId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+         request.resource.data.status == 'delivered')
+      );
+    }
+
+    match /search_index/{phone} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOwner(request.resource.data.userId) && isValidSearchIndex(request.resource.data);
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Atma:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Hind+Siliguri:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Hind Siliguri", sans-serif;
+  --font-handwriting: "Atma", cursive;
+  --font-display: "Playfair Display", serif;
+  
+  --color-primary: #5A5A40; /* Olive */
+  --color-accent: #D4A373; /* Earthy Gold */
+  --color-paper: #F5F5F0; /* Warm Off-white */
+  --color-ink: #1A1A1A; /* Soft Black */
+  --color-clay: #A0522D; /* Sienna */
+}
+
+@layer base {
+  body {
+    @apply bg-paper text-ink font-sans selection:bg-primary selection:text-white;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+}
+
+.glass {
+  @apply bg-white/70 backdrop-blur-md border border-white/20;
+}
+
+.card-nostalgic {
+  @apply bg-white rounded-[40px] shadow-xl border border-primary/5 p-8 md:p-12;
+}
+
+.btn-primary {
+  @apply bg-primary text-white px-8 py-4 rounded-full font-bold transition-all hover:bg-primary/90 hover:scale-105 active:scale-95 disabled:opacity-50 shadow-lg shadow-primary/20;
+}
+
+.btn-secondary {
+  @apply border-2 border-primary/20 text-primary px-8 py-4 rounded-full font-bold transition-all hover:bg-primary/5 hover:scale-105 active:scale-95;
+}
+
+.input-field {
+  @apply w-full px-6 py-4 rounded-2xl bg-paper border border-primary/10 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none font-sans text-lg;
+}
+
+.label-nostalgic {
+  @apply text-xs uppercase tracking-[0.2em] font-bold text-primary/40 mb-2 block;
+}
+
+.stamp-effect {
+  @apply border-4 border-clay/30 text-clay/40 font-display font-black uppercase px-4 py-2 rotate-12 inline-block rounded-lg;
+}
+
