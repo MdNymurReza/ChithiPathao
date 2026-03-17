@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User, PenTool, BookOpen, Heart } from 'lucide-react';
+import { LogOut, User, PenTool, BookOpen, Heart, Bike, Award } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -19,6 +19,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const navItems = [
     { path: '/dashboard', icon: BookOpen, label: 'চিঠির তাক' },
     { path: '/write-letter', icon: PenTool, label: 'চিঠি লিখুন' },
+    { path: '/post-office', icon: Bike, label: 'ডাকঘর' },
+    { path: '/stamps', icon: Award, label: 'স্ট্যাম্প' },
     { path: '/chocolates', icon: Heart, label: 'চকলেট' },
     { path: '/profile', icon: User, label: 'প্রোফাইল' },
   ];

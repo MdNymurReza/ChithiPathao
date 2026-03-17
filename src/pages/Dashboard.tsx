@@ -5,8 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Bookshelf } from '../components/Bookshelf';
 import { Layout } from '../components/Layout';
-import { Bike, Cloud } from 'lucide-react';
+import { Bike, Cloud, MapPin, Award } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Link } from 'react-router-dom';
 
 interface Letter {
   id: string;
@@ -42,49 +43,30 @@ export const Dashboard: React.FC = () => {
       where('receiverId', '==', user.uid)
     );
 
-    const unsubscribeReceived = onSnapshot(qReceived, async (snapshot) => {
-      try {
-        const now = Date.now();
-        const lettersData = await Promise.all(snapshot.docs.map(async (letterDoc) => {
-          const data = letterDoc.data() as Letter;
-          
-          // Check if delivered
-          const deliveryTime = data.deliveryTime?.toMillis ? data.deliveryTime.toMillis() : 0;
-          if (deliveryTime > now) return null; // Not delivered yet
+    const unsubscribeReceived = onSnapshot(qReceived, (snapshot) => {
+      const now = Date.now();
+      const lettersData = snapshot.docs.map(doc => {
+        const data = doc.data() as Letter;
+        const deliveryTime = data.deliveryTime?.toMillis ? data.deliveryTime.toMillis() : 0;
+        
+        if (deliveryTime > now) return null;
 
-          let senderName = 'অজানা';
-          
-          if (!data.isAnonymous) {
-            try {
-              const senderDoc = await getDoc(doc(db, 'users', data.senderId));
-              if (senderDoc.exists()) {
-                const senderData = senderDoc.data();
-                senderName = `${senderData.firstName} ${senderData.lastName}`;
-              }
-            } catch (err) {
-              console.error("Error fetching sender name:", err);
-            }
-          }
-          
-          return { ...data, id: letterDoc.id, senderName };
-        }));
-        
-        // Filter out nulls (not delivered)
-        const filteredLetters = lettersData.filter(l => l !== null) as Letter[];
-        
-        // Sort client-side to avoid index requirements
-        const sortedLetters = filteredLetters.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-          const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-          return timeB - timeA;
-        });
-        
-        setReceivedLetters(sortedLetters);
-      } catch (err) {
-        console.error("Error processing received letters:", err);
-      } finally {
-        setLoading(false);
-      }
+        return {
+          ...data,
+          id: doc.id,
+          senderName: data.isAnonymous ? 'অজানা' : (data.senderName || 'অজানা')
+        };
+      }).filter(l => l !== null) as Letter[];
+
+      // Sort client-side
+      const sortedLetters = lettersData.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+
+      setReceivedLetters(sortedLetters);
+      setLoading(false);
     }, (error) => {
       console.error("Received letters snapshot error:", error);
       setLoading(false);
@@ -96,38 +78,21 @@ export const Dashboard: React.FC = () => {
       where('senderId', '==', user.uid)
     );
 
-    const unsubscribeSent = onSnapshot(qSent, async (snapshot) => {
-      try {
-        const lettersData = await Promise.all(snapshot.docs.map(async (letterDoc) => {
-          const data = letterDoc.data() as Letter;
-          let receiverName = 'প্রাপক';
-          
-          try {
-            const receiverDoc = await getDoc(doc(db, 'users', data.receiverId));
-            if (receiverDoc.exists()) {
-              const receiverData = receiverDoc.data();
-              receiverName = `${receiverData.firstName} ${receiverData.lastName}`;
-            }
-          } catch (err) {
-            console.error("Error fetching receiver name:", err);
-          }
-          
-          return { ...data, id: letterDoc.id, senderName: receiverName }; // Using senderName field for display in Bookshelf
-        }));
+    const unsubscribeSent = onSnapshot(qSent, (snapshot) => {
+      const lettersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Letter[];
 
-        // Sort client-side
-        const sortedLetters = lettersData.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-          const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-          return timeB - timeA;
-        });
+      // Sort client-side
+      const sortedLetters = lettersData.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
 
-        setSentLetters(sortedLetters);
-      } catch (err) {
-        console.error("Error processing sent letters:", err);
-      } finally {
-        setLoading(false);
-      }
+      setSentLetters(sortedLetters);
+      setLoading(false);
     }, (error) => {
       console.error("Sent letters snapshot error:", error);
       setLoading(false);
@@ -162,9 +127,22 @@ export const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="space-y-16 py-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-display font-bold text-primary italic">আপনার চিঠিপত্র</h1>
-          <p className="text-primary/40 font-serif italic">আপনার হৃদয়ের ডাকবাক্স</p>
+        <div className="text-center space-y-6">
+          <div className="flex flex-col items-center">
+            <h1 className="text-4xl font-display font-bold text-primary italic">আপনার চিঠিপত্র</h1>
+            <p className="text-primary/40 font-serif italic">আপনার হৃদয়ের ডাকবাক্স</p>
+          </div>
+          
+          <div className="flex justify-center gap-4">
+            <Link to="/post-office" className="card-nostalgic px-6 py-3 flex items-center gap-2 hover:border-accent transition-colors group">
+              <MapPin size={18} className="text-accent group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-bold uppercase tracking-widest">ডাকঘর ট্র্যাকিং</span>
+            </Link>
+            <Link to="/stamps" className="card-nostalgic px-6 py-3 flex items-center gap-2 hover:border-primary transition-colors group">
+              <Award size={18} className="text-primary group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-bold uppercase tracking-widest">স্ট্যাম্প সংগ্রহ</span>
+            </Link>
+          </div>
         </div>
         
         {inTransitLetters.length > 0 && (

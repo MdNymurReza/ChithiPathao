@@ -48,21 +48,16 @@ export const LetterDetail: React.FC = () => {
             }
           }
 
-          // Fetch names and addresses
-          const [senderDoc, receiverDoc] = await Promise.all([
-            getDoc(doc(db, 'users', data.senderId)),
-            getDoc(doc(db, 'users', data.receiverId))
-          ]);
-
-          const senderData = senderDoc.data();
-          const receiverData = receiverDoc.data();
+          // Use stored names if available, otherwise fallback to fetching
+          const senderName = data.senderName || 'অজানা';
+          const receiverName = data.receiverName || 'প্রাপক';
 
           setLetter({
             ...data,
-            senderName: `${senderData?.firstName} ${senderData?.lastName}`,
-            receiverName: `${receiverData?.firstName} ${receiverData?.lastName}`,
-            senderAddress: senderData?.address,
-            receiverAddress: receiverData?.address
+            senderName,
+            receiverName,
+            senderAddress: data.senderAddress || '',
+            receiverAddress: data.receiverAddress || ''
           });
 
           // Mark as delivered if it was sent and receiver is viewing

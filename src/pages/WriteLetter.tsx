@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, increment, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, increment, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Layout } from '../components/Layout';
-import { Search, Send, User, Heart, AlertCircle, Gift, Bike } from 'lucide-react';
+import { Search, Send, User, Heart, AlertCircle, Gift, Bike, Palette, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactQuill from 'react-quill-new';
+
+const PAPER_STYLES = [
+  { id: 'parchment', name: 'Aged Parchment', class: 'bg-[#f4ecd8] border-[#d4c5a1] text-[#5d4037]' },
+  { id: 'blue-lined', name: 'Blue Lined', class: 'bg-white border-blue-100 text-blue-900 bg-[linear-gradient(transparent_95%,#e0e7ff_95%)] bg-[length:100%_2rem]' },
+  { id: 'floral', name: 'Floral Border', class: 'bg-[#fff9fb] border-pink-100 text-pink-900 card-cover-floral' },
+  { id: 'midnight', name: 'Midnight Dark', class: 'bg-[#1a1a2e] border-indigo-900 text-indigo-100' },
+];
+
+const WAX_SEALS = [
+  { id: 'heart', icon: '❤️', name: 'Heart' },
+  { id: 'flower', icon: '🌸', name: 'Flower' },
+  { id: 'dakghor', icon: '📯', name: 'Dakghor' },
+  { id: 'star', icon: '⭐', name: 'Star' },
+];
 
 export const WriteLetter: React.FC = () => {
   const { user, profile } = useAuth();
@@ -17,6 +31,8 @@ export const WriteLetter: React.FC = () => {
   const [chocolateAmount, setChocolateAmount] = useState(0);
   const [customChocolate, setCustomChocolate] = useState('');
   const [showCustom, setShowCustom] = useState(false);
+  const [paperStyle, setPaperStyle] = useState(PAPER_STYLES[0]);
+  const [waxSeal, setWaxSeal] = useState(WAX_SEALS[0]);
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -54,6 +70,16 @@ export const WriteLetter: React.FC = () => {
   const handleSend = async () => {
     if (!user || !receiver || !content || !profile) return;
     
+    // Validate content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    const plainText = (tempDiv.textContent || tempDiv.innerText || "").trim();
+    
+    if (plainText.length === 0) {
+      setError('অনুগ্রহ করে আপনার বার্তার মূল অংশ লিখুন।');
+      return;
+    }
+
     const finalAmount = showCustom ? parseInt(customChocolate) || 0 : chocolateAmount;
     
     if (finalAmount > profile.chocolateBalance) {
@@ -62,6 +88,7 @@ export const WriteLetter: React.FC = () => {
     }
 
     setSending(true);
+    setError('');
 
     try {
       // 1. Deduct chocolates from sender
@@ -82,14 +109,11 @@ export const WriteLetter: React.FC = () => {
 
       // 3. Add letter
       try {
-        // Strip HTML for preview
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = content;
-        const plainText = tempDiv.textContent || tempDiv.innerText || "";
-
         await addDoc(collection(db, 'letters'), {
           senderId: user.uid,
+          senderName: profile.firstName + ' ' + profile.lastName,
           receiverId: receiver.id,
+          receiverName: receiver.name,
           content,
           preview: plainText.substring(0, 100),
           isAnonymous,
@@ -98,18 +122,72 @@ export const WriteLetter: React.FC = () => {
           status: 'sent',
           createdAt: serverTimestamp(),
           deliveryTime: deliveryTime,
+          paperStyle: paperStyle.id,
+          waxSeal: waxSeal.id,
         });
+
+        // 5. Award Stamps
+        const newStamps = [...(profile?.stamps || [])];
+        let stampsUpdated = false;
+
+        if (!newStamps.includes('first_letter')) {
+          newStamps.push('first_letter');
+          stampsUpdated = true;
+        }
+
+        if (finalAmount >= 10 && !newStamps.includes('gift_giver')) {
+          newStamps.push('gift_giver');
+          stampsUpdated = true;
+        }
+
+        // Fetch sent letters count for more stamps
+        const qSent = query(
+          collection(db, 'letters'),
+          where('senderId', '==', user.uid)
+        );
+        const sentSnapshot = await getDocs(qSent);
+        const sentCount = sentSnapshot.size;
+
+        if (sentCount >= 5 && !newStamps.includes('five_letters')) {
+          newStamps.push('five_letters');
+          stampsUpdated = true;
+        }
+
+        if (sentCount >= 10 && !newStamps.includes('ten_letters')) {
+          newStamps.push('ten_letters');
+          stampsUpdated = true;
+        }
+
+        if (stampsUpdated) {
+          await updateDoc(doc(db, 'users', user.uid), {
+            stamps: newStamps
+          });
+        }
+
       } catch (err: any) {
         handleFirestoreError(err, OperationType.CREATE, 'letters');
         throw err;
       }
 
-      // Show success message and navigate
-      alert('চিঠিটি পোস্টবক্সে জমা দেওয়া হয়েছে। এটি গন্তব্যে পৌঁছাতে কিছুক্ষণ সময় লাগবে।');
-      navigate('/dashboard');
-    } catch (err) {
+      // Success feedback is handled by the redirect and the "in transit" state
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+    } catch (err: any) {
       console.error(err);
-      alert('চিঠি পাঠাতে সমস্যা হয়েছে।');
+      let message = 'চিঠি পাঠাতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।';
+      
+      // Try to extract more info if it's a Firestore error
+      try {
+        const errData = JSON.parse(err.message);
+        if (errData.error.includes('insufficient permissions')) {
+          message = 'আপনার এই কাজটি করার অনুমতি নেই। সম্ভবত আপনার ব্যালেন্স শেষ হয়ে গেছে।';
+        }
+      } catch (e) {
+        // Not a JSON error
+      }
+      
+      setError(message);
     } finally {
       setSending(false);
     }
@@ -117,7 +195,7 @@ export const WriteLetter: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8 pb-20">
         <div className="text-center">
           <h1 className="text-4xl font-display font-bold text-primary">হৃদয়ের কথা লিখুন</h1>
           <p className="text-primary/60 font-serif italic">আপনার মনের গহীনের কথাগুলো সাজিয়ে লিখুন</p>
@@ -193,7 +271,51 @@ export const WriteLetter: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8"
           >
-            <div className="card-nostalgic min-h-[600px] flex flex-col p-0 overflow-hidden">
+            {/* Customization Options */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="card-nostalgic p-6 space-y-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <Palette size={18} />
+                  <h3 className="font-bold font-display">কাগজ নির্বাচন করুন</h3>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {PAPER_STYLES.map((style) => (
+                    <button
+                      key={style.id}
+                      onClick={() => setPaperStyle(style)}
+                      className={`flex-shrink-0 px-4 py-2 rounded-sm border-2 transition-all text-xs font-bold ${
+                        paperStyle.id === style.id ? 'border-primary shadow-md scale-105' : 'border-transparent opacity-60'
+                      } ${style.class}`}
+                    >
+                      {style.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="card-nostalgic p-6 space-y-4">
+                <div className="flex items-center gap-2 text-primary">
+                  <ShieldCheck size={18} />
+                  <h3 className="font-bold font-display">মোমের সিল (Wax Seal)</h3>
+                </div>
+                <div className="flex gap-4">
+                  {WAX_SEALS.map((seal) => (
+                    <button
+                      key={seal.id}
+                      onClick={() => setWaxSeal(seal)}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl transition-all border-2 ${
+                        waxSeal.id === seal.id ? 'border-accent bg-accent/10 scale-110 shadow-lg' : 'border-transparent bg-primary/5'
+                      }`}
+                      title={seal.name}
+                    >
+                      {seal.icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className={`card-nostalgic min-h-[600px] flex flex-col p-0 overflow-hidden transition-colors duration-500 ${paperStyle.class}`}>
               <div className="p-8 md:p-12 flex-1">
                 <ReactQuill
                   theme="snow"

@@ -76,7 +76,8 @@ service cloud.firestore {
              data.phone is string && (data.phone.size() == 0 || (data.phone.size() >= 10 && data.phone.size() <= 15)) &&
              data.allowSearch is bool &&
              data.chocolateBalance is int && data.chocolateBalance >= 0 &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             (!('stamps' in data) || data.stamps is list);
     }
 
     function isValidLetter(data) {
@@ -89,7 +90,13 @@ service cloud.firestore {
              data.chocolateAmount is int && data.chocolateAmount >= 0 &&
              data.chocolateStatus in ['none', 'pending', 'accepted', 'rejected'] &&
              data.status in ['sent', 'delivered'] &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             (!('deliveryTime' in data) || data.deliveryTime is timestamp) &&
+             (!('paperStyle' in data) || data.paperStyle is string) &&
+             (!('waxSeal' in data) || data.waxSeal is string) &&
+             (!('senderName' in data) || data.senderName is string) &&
+             (!('receiverName' in data) || data.receiverName is string) &&
+             (!('signature' in data) || data.signature == null || data.signature is string);
     }
 
     function isValidSearchIndex(data) {

@@ -14,7 +14,9 @@
         "chocolateBalance": { "type": "integer" },
         "createdAt": { "type": "string", "format": "date-time" },
         "profilePic": { "type": "string" },
-        "blockedUsers": { "type": "array", "items": { "type": "string" } }
+        "blockedUsers": { "type": "array", "items": { "type": "string" } },
+        "lastLoginDate": { "type": "string" },
+        "stamps": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["firstName", "lastName", "email", "phone", "allowSearch", "createdAt"]
     },
@@ -32,7 +34,11 @@
         "chocolateStatus": { "type": "string", "enum": ["none", "pending", "accepted", "rejected"] },
         "status": { "type": "string", "enum": ["sent", "delivered"] },
         "createdAt": { "type": "string", "format": "date-time" },
-        "deliveryAt": { "type": "string", "format": "date-time" }
+        "deliveryTime": { "type": "string", "format": "date-time" },
+        "paperStyle": { "type": "string" },
+        "waxSeal": { "type": "string" },
+        "signature": { "type": "string" },
+        "stampId": { "type": "string" }
       },
       "required": ["senderId", "receiverId", "content", "preview", "isAnonymous", "chocolateStatus", "status", "createdAt"]
     },

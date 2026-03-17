@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { format } from 'date-fns';
 
 interface UserProfile {
   firstName: string;
@@ -13,6 +14,8 @@ interface UserProfile {
   chocolateBalance: number;
   createdAt: any;
   blockedUsers?: string[];
+  lastLoginDate?: string;
+  stamps?: string[];
 }
 
 interface AuthContextType {
@@ -52,9 +55,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (user) {
-      const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-        if (doc.exists()) {
-          setProfile(doc.data() as UserProfile);
+      const unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), async (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data() as UserProfile;
+          setProfile(data);
+          
+          // Daily Gift Logic
+          const today = format(new Date(), 'yyyy-MM-dd');
+          if (data.lastLoginDate !== today) {
+            try {
+              await updateDoc(doc(db, 'users', user.uid), {
+                lastLoginDate: today,
+                chocolateBalance: increment(3) // 3 daily gifts
+              });
+              console.log("Daily gift awarded!");
+            } catch (err) {
+              console.error("Error awarding daily gift:", err);
+            }
+          }
         } else {
           setProfile(null);
         }

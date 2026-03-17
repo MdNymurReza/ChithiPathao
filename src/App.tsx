@@ -11,6 +11,8 @@ import { WriteLetter } from './pages/WriteLetter';
 import { LetterDetail } from './pages/LetterDetail';
 import { Profile } from './pages/Profile';
 import { Chocolates } from './pages/Chocolates';
+import { PostOffice } from './pages/PostOffice';
+import { Stamps } from './pages/Stamps';
 
 export default function App() {
   return (
@@ -67,6 +69,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Chocolates />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/post-office"
+            element={
+              <ProtectedRoute>
+                <PostOffice />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stamps"
+            element={
+              <ProtectedRoute>
+                <Stamps />
               </ProtectedRoute>
             }
           />
