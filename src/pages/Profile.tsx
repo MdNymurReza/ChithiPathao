@@ -86,25 +86,22 @@ export const Profile: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto space-y-12 py-8">
+      <div className="max-w-3xl mx-auto space-y-12 py-8">
         <div className="text-center relative">
           <motion.div 
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-32 h-32 bg-primary text-white rounded-[40px] mx-auto flex items-center justify-center text-5xl font-display font-bold mb-6 shadow-2xl rotate-3 relative group"
+            className="w-32 h-32 bg-primary text-white rounded-none mx-auto flex items-center justify-center text-5xl font-display font-bold mb-8 shadow-2xl relative border-4 border-double border-white/20 rotate-3"
           >
             {formData.firstName[0] || profile.firstName[0]}
-            <div className="absolute -bottom-2 -right-2 bg-accent text-white p-2 rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-              <User size={16} />
-            </div>
           </motion.div>
           
           {!isEditing ? (
             <>
-              <h1 className="text-4xl font-display font-bold text-primary mb-2">
+              <h1 className="text-4xl font-display font-bold text-primary mb-2 italic">
                 {profile.firstName} {profile.lastName}
               </h1>
-              <p className="text-primary/40 uppercase tracking-[0.2em] text-xs font-bold">ডাকঘর সদস্য</p>
+              <p className="text-primary/40 uppercase tracking-[0.3em] text-[10px] font-bold">ডাকঘর সদস্য</p>
             </>
           ) : (
             <div className="flex gap-4 justify-center mt-4">
@@ -112,13 +109,13 @@ export const Profile: React.FC = () => {
                 className="input-field text-center max-w-[150px]"
                 value={formData.firstName}
                 onChange={e => setFormData({...formData, firstName: e.target.value})}
-                placeholder="নামের প্রথম অংশ"
+                placeholder="নাম"
               />
               <input
                 className="input-field text-center max-w-[150px]"
                 value={formData.lastName}
                 onChange={e => setFormData({...formData, lastName: e.target.value})}
-                placeholder="নামের শেষ অংশ"
+                placeholder="পদবি"
               />
             </div>
           )}
@@ -130,91 +127,88 @@ export const Profile: React.FC = () => {
           </div>
         )}
 
-        <div className="bg-white rounded-[40px] shadow-xl border border-primary/5 overflow-hidden">
-          <div className="p-10 space-y-8">
+        <div className="card-nostalgic !p-0 overflow-hidden">
+          <div className="p-12 space-y-10">
             {/* Email - Read Only */}
-            <div className="flex items-center gap-6 group">
-              <div className="w-14 h-14 bg-paper rounded-2xl flex items-center justify-center text-primary">
+            <div className="flex items-center gap-8">
+              <div className="w-14 h-14 bg-primary/5 rounded-full flex items-center justify-center text-primary/40 border border-primary/10">
                 <Mail size={24} />
               </div>
               <div>
                 <p className="label-nostalgic">ইমেইল ঠিকানা</p>
-                <p className="font-display font-bold text-lg text-primary/50">{profile.email}</p>
+                <p className="font-serif italic text-xl text-primary/40">{profile.email}</p>
               </div>
             </div>
 
             {/* Phone */}
-            <div className="flex items-center gap-6 group">
-              <div className="w-14 h-14 bg-paper rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+            <div className="flex items-center gap-8">
+              <div className="w-14 h-14 bg-primary/5 rounded-full flex items-center justify-center text-primary border border-primary/10">
                 <Phone size={24} />
               </div>
               <div className="flex-1">
                 <p className="label-nostalgic">ফোন নম্বর</p>
                 {isEditing ? (
                   <input
-                    className="input-field py-2"
+                    className="input-field py-3 text-xl"
                     value={formData.phone}
                     onChange={e => setFormData({...formData, phone: e.target.value})}
                   />
                 ) : (
-                  <p className="font-display font-bold text-lg text-primary">{profile.phone}</p>
+                  <p className="font-display font-bold text-2xl text-primary italic">{profile.phone}</p>
                 )}
               </div>
             </div>
 
             {/* Address */}
-            <div className="flex items-center gap-6 group">
-              <div className="w-14 h-14 bg-paper rounded-2xl flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+            <div className="flex items-center gap-8">
+              <div className="w-14 h-14 bg-primary/5 rounded-full flex items-center justify-center text-primary border border-primary/10">
                 <MapPin size={24} />
               </div>
               <div className="flex-1">
                 <p className="label-nostalgic">ঠিকানা</p>
                 {isEditing ? (
                   <textarea
-                    className="input-field py-2 min-h-[80px]"
+                    className="input-field py-3 min-h-[100px] text-xl"
                     value={formData.address}
                     onChange={e => setFormData({...formData, address: e.target.value})}
                   />
                 ) : (
-                  <p className="font-display font-bold text-lg text-primary">{profile.address || 'দেওয়া হয়নি'}</p>
+                  <p className="font-display font-bold text-2xl text-primary italic">{profile.address || 'দেওয়া হয়নি'}</p>
                 )}
               </div>
             </div>
 
             {/* Chocolate Balance */}
-            <div className="flex items-center gap-6 group">
-              <div className="w-14 h-14 bg-pink-50 rounded-2xl flex items-center justify-center text-pink-500 group-hover:scale-110 transition-transform">
+            <div className="flex items-center gap-8">
+              <div className="w-14 h-14 bg-accent/5 rounded-full flex items-center justify-center text-accent border border-accent/10">
                 <Heart size={24} fill="currentColor" />
               </div>
               <div>
-                <p className="label-nostalgic text-pink-400">চকলেট ব্যালেন্স</p>
-                <p className="font-display font-bold text-3xl text-pink-500">
-                  {profile.chocolateBalance} <span className="text-sm font-sans">টি</span>
+                <p className="label-nostalgic text-accent/60">উপহার ব্যালেন্স</p>
+                <p className="font-display font-bold text-4xl text-accent italic">
+                  {profile.chocolateBalance} <span className="text-sm font-serif font-normal text-primary/40 not-italic">টি</span>
                 </p>
-              </div>
-              <div className="ml-auto stamp-effect">
-                মিষ্টি উপহার
               </div>
             </div>
           </div>
 
-          <div className="bg-paper p-8 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="bg-primary/5 p-10 flex items-center justify-between border-t border-primary/10">
+            <div className="flex items-center gap-4">
               <Shield size={20} className="text-primary/40" />
-              <span className="text-sm font-medium text-primary">সার্চে দৃশ্যমানতা</span>
+              <span className="text-xs font-bold text-primary/60 uppercase tracking-[0.2em]">সার্চে দৃশ্যমানতা</span>
             </div>
             {isEditing ? (
               <button
                 onClick={() => setFormData({...formData, allowSearch: !formData.allowSearch})}
-                className={`px-6 py-2 rounded-full font-bold text-xs transition-all ${
-                  formData.allowSearch ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'
+                className={`px-8 py-3 rounded-none font-bold text-xs uppercase tracking-widest transition-all border-2 ${
+                  formData.allowSearch ? 'bg-primary text-white border-primary' : 'bg-transparent text-primary/40 border-primary/10'
                 }`}
               >
                 {formData.allowSearch ? 'চালু' : 'বন্ধ'}
               </button>
             ) : (
-              <span className={`text-xs font-bold px-4 py-2 rounded-full ${
-                profile.allowSearch ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+              <span className={`text-xs font-bold px-6 py-3 rounded-none uppercase tracking-widest border ${
+                profile.allowSearch ? 'bg-primary/10 text-primary border-primary/20' : 'bg-transparent text-primary/20 border-primary/10'
               }`}>
                 {profile.allowSearch ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
               </span>

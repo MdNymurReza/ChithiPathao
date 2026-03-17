@@ -35,8 +35,8 @@ export const Login: React.FC = () => {
         className="card-nostalgic max-w-md w-full"
       >
         <div className="text-center mb-10">
-          <h1 className="text-5xl font-display font-bold text-primary mb-2 tracking-tighter">ডাকঘর</h1>
-          <p className="text-primary/40 italic">আপনার ডিজিটাল চিঠির বাক্সে ফিরে আসুন</p>
+          <h1 className="text-4xl font-bold text-primary mb-2 tracking-tighter">ডাকঘর</h1>
+          <p className="text-slate-400">আপনার ডিজিটাল চিঠির বাক্সে ফিরে আসুন</p>
         </div>
 
         {error && (
@@ -79,9 +79,9 @@ export const Login: React.FC = () => {
           </button>
         </form>
 
-        <p className="mt-10 text-center text-primary/40 text-sm font-medium">
+        <p className="mt-10 text-center text-slate-400 text-sm font-medium">
           অ্যাকাউন্ট নেই?{' '}
-          <Link to="/signup" className="text-primary font-bold underline underline-offset-8 hover:text-accent transition-colors">
+          <Link to="/signup" className="text-primary font-bold hover:text-accent transition-colors">
             নতুন অ্যাকাউন্ট তৈরি করুন
           </Link>
         </p>

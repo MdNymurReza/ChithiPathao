@@ -26,47 +26,46 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return (
     <div className="min-h-screen bg-paper font-sans text-ink">
       {/* Header */}
-      <header className="glass sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      <header className="glass sticky top-0 z-50 border-b border-slate-200/50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
-              <BookOpen size={20} />
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white shadow-sm group-hover:bg-slate-700 transition-colors">
+              <BookOpen size={16} />
             </div>
-            <span className="text-3xl font-display font-bold text-primary tracking-tighter">
+            <span className="text-xl font-bold text-primary tracking-tight">
               ডাকঘর
             </span>
           </Link>
 
           {user && (
-            <div className="flex items-center gap-8">
-              <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center gap-6">
+              <div className="hidden md:flex items-center gap-1">
                 {navItems.map((item) => (
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
                       location.pathname === item.path
-                        ? 'bg-primary text-white shadow-md'
-                        : 'text-primary/60 hover:bg-primary/5 hover:text-primary'
+                        ? 'bg-slate-100 text-primary font-semibold'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-primary'
                     }`}
                   >
-                    <item.icon size={18} />
-                    <span className="text-sm font-medium">{item.label}</span>
+                    <item.icon size={16} />
+                    <span className="text-sm">{item.label}</span>
                   </Link>
                 ))}
               </div>
 
-              <div className="flex items-center gap-4 border-l border-primary/10 pl-8">
+              <div className="flex items-center gap-4 border-l border-slate-200 pl-6">
                 <div className="text-right hidden sm:block">
-                  <p className="text-[10px] text-primary/40 uppercase tracking-widest font-bold">সদস্য</p>
-                  <p className="text-sm font-display font-bold text-primary">{profile?.firstName || 'ব্যবহারকারী'}</p>
+                  <p className="text-xs font-semibold text-primary">{profile?.firstName || 'ব্যবহারকারী'}</p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="w-10 h-10 flex items-center justify-center text-primary/40 hover:bg-red-50 hover:text-red-600 rounded-full transition-all"
+                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
                   title="লগআউট"
                 >
-                  <LogOut size={20} />
+                  <LogOut size={16} />
                 </button>
               </div>
             </div>
@@ -76,18 +75,18 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
       {/* Mobile Nav */}
       {user && (
-        <nav className="md:hidden fixed bottom-6 left-6 right-6 glass rounded-3xl z-50 px-6 py-3 shadow-2xl">
+        <nav className="md:hidden fixed bottom-4 left-4 right-4 glass rounded-2xl z-50 px-4 py-3 shadow-lg border border-slate-200/50">
           <div className="flex justify-around items-center">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
                 className={`flex flex-col items-center gap-1 transition-all ${
-                  location.pathname === item.path ? 'text-primary scale-110' : 'text-primary/30'
+                  location.pathname === item.path ? 'text-accent' : 'text-slate-400'
                 }`}
               >
-                <item.icon size={22} />
-                <span className="text-[10px] font-bold uppercase tracking-tighter">{item.label}</span>
+                <item.icon size={20} />
+                <span className="text-[10px] font-medium">{item.label}</span>
               </Link>
             ))}
           </div>

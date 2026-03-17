@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, increment, Timestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Layout } from '../components/Layout';
-import { Search, Send, User, Heart, AlertCircle } from 'lucide-react';
+import { Search, Send, User, Heart, AlertCircle, Gift, Bike } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactQuill from 'react-quill-new';
 
 export const WriteLetter: React.FC = () => {
   const { user, profile } = useAuth();
@@ -14,6 +15,8 @@ export const WriteLetter: React.FC = () => {
   const [content, setContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [chocolateAmount, setChocolateAmount] = useState(0);
+  const [customChocolate, setCustomChocolate] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -51,8 +54,10 @@ export const WriteLetter: React.FC = () => {
   const handleSend = async () => {
     if (!user || !receiver || !content || !profile) return;
     
-    if (chocolateAmount > profile.chocolateBalance) {
-      setError(`আপনার কাছে পর্যাপ্ত চকলেট নেই। আপনার ব্যালেন্স: ${profile.chocolateBalance}টি`);
+    const finalAmount = showCustom ? parseInt(customChocolate) || 0 : chocolateAmount;
+    
+    if (finalAmount > profile.chocolateBalance) {
+      setError(`আপনার কাছে পর্যাপ্ত উপহার নেই। আপনার ব্যালেন্স: ${profile.chocolateBalance}টি`);
       return;
     }
 
@@ -60,10 +65,10 @@ export const WriteLetter: React.FC = () => {
 
     try {
       // 1. Deduct chocolates from sender
-      if (chocolateAmount > 0) {
+      if (finalAmount > 0) {
         try {
           await updateDoc(doc(db, 'users', user.uid), {
-            chocolateBalance: increment(-chocolateAmount)
+            chocolateBalance: increment(-finalAmount)
           });
         } catch (err: any) {
           handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
@@ -71,18 +76,28 @@ export const WriteLetter: React.FC = () => {
         }
       }
 
-      // 2. Add letter
+      // 2. Calculate delivery time (2 minutes from now)
+      const now = new Date();
+      const deliveryTime = new Timestamp(Math.floor((now.getTime() + 120000) / 1000), 0);
+
+      // 3. Add letter
       try {
+        // Strip HTML for preview
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        const plainText = tempDiv.textContent || tempDiv.innerText || "";
+
         await addDoc(collection(db, 'letters'), {
           senderId: user.uid,
           receiverId: receiver.id,
           content,
-          preview: content.substring(0, 100),
+          preview: plainText.substring(0, 100),
           isAnonymous,
-          chocolateAmount,
-          chocolateStatus: chocolateAmount > 0 ? 'pending' : 'none',
+          chocolateAmount: finalAmount,
+          chocolateStatus: finalAmount > 0 ? 'pending' : 'none',
           status: 'sent',
           createdAt: serverTimestamp(),
+          deliveryTime: deliveryTime,
         });
       } catch (err: any) {
         handleFirestoreError(err, OperationType.CREATE, 'letters');
@@ -90,7 +105,7 @@ export const WriteLetter: React.FC = () => {
       }
 
       // Show success message and navigate
-      alert('চিঠিটি পাঠানো হয়েছে। এটি পৌঁছাতে কিছুক্ষণ সময় লাগতে পারে।');
+      alert('চিঠিটি পোস্টবক্সে জমা দেওয়া হয়েছে। এটি গন্তব্যে পৌঁছাতে কিছুক্ষণ সময় লাগবে।');
       navigate('/dashboard');
     } catch (err) {
       console.error(err);
@@ -104,30 +119,30 @@ export const WriteLetter: React.FC = () => {
     <Layout>
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-[#5A5A40]">নতুন চিঠি লিখুন</h1>
-          <p className="text-[#5A5A40]/60 italic">আপনার মনের কথাগুলো সাজিয়ে লিখুন</p>
+          <h1 className="text-4xl font-display font-bold text-primary">হৃদয়ের কথা লিখুন</h1>
+          <p className="text-primary/60 font-serif italic">আপনার মনের গহীনের কথাগুলো সাজিয়ে লিখুন</p>
         </div>
 
         {/* Receiver Search */}
-        <div className="bg-white rounded-[32px] shadow-sm p-6 md:p-8 border border-[#5A5A40]/10">
+        <div className="bg-white rounded-3xl shadow-sm p-6 md:p-8 border border-slate-200">
           <div className="flex flex-col md:flex-row gap-4 items-end">
             <div className="flex-1 space-y-2 w-full">
-              <label className="text-sm font-medium text-[#5A5A40]">প্রাপকের ফোন নম্বর</label>
+              <label className="label-nostalgic">প্রাপকের ফোন নম্বর</label>
               <div className="relative">
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-2xl bg-[#f5f5f0] border-none focus:ring-2 focus:ring-[#5A5A40] transition-all"
+                  className="input-field pl-12"
                   placeholder="017XXXXXXXX"
                 />
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5A5A40]/40" size={20} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               </div>
             </div>
             <button
               onClick={handleSearch}
               disabled={searching || !phone}
-              className="px-8 py-3 bg-[#5A5A40] text-white rounded-full font-bold hover:bg-[#4a4a34] transition-colors disabled:opacity-50 h-[52px]"
+              className="btn-primary h-[52px]"
             >
               {searching ? 'খোঁজা হচ্ছে...' : 'খুঁজুন'}
             </button>
@@ -176,72 +191,134 @@ export const WriteLetter: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="space-y-8"
           >
-            <div className="bg-white rounded-[32px] shadow-sm p-6 md:p-8 border border-[#5A5A40]/10">
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="আপনার চিঠি এখানে লিখুন..."
-                className="w-full min-h-[400px] p-6 rounded-2xl bg-[#fdfbf7] border-none focus:ring-2 focus:ring-[#5A5A40] transition-all text-xl font-handwriting leading-relaxed resize-none"
-              />
+            <div className="card-nostalgic min-h-[600px] flex flex-col p-0 overflow-hidden">
+              <div className="p-8 md:p-12 flex-1">
+                <ReactQuill
+                  theme="snow"
+                  value={content}
+                  onChange={setContent}
+                  placeholder="প্রিয়..."
+                  modules={{
+                    toolbar: [
+                      ['bold', 'italic', 'underline'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      ['clean']
+                    ],
+                  }}
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Options */}
-              <div className="bg-white rounded-[32px] shadow-sm p-6 border border-[#5A5A40]/10 space-y-4">
+              <div className="card-nostalgic p-8 space-y-6">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-[#5A5A40]">অজ্ঞাতনামা হিসেবে পাঠান</label>
+                  <div>
+                    <h3 className="text-lg font-display font-bold text-primary italic">অজ্ঞাতনামা হিসেবে পাঠান</h3>
+                    <p className="text-xs text-primary/40 font-serif italic mt-1">
+                      এটি চালু করলে প্রাপক আপনার নাম দেখতে পাবেন না।
+                    </p>
+                  </div>
                   <button
                     onClick={() => setIsAnonymous(!isAnonymous)}
-                    className={`w-12 h-6 rounded-full transition-colors relative ${
-                      isAnonymous ? 'bg-[#5A5A40]' : 'bg-gray-200'
+                    className={`w-14 h-7 rounded-full transition-all relative ${
+                      isAnonymous ? 'bg-accent' : 'bg-primary/10'
                     }`}
                   >
-                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
-                      isAnonymous ? 'left-7' : 'left-1'
+                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${
+                      isAnonymous ? 'left-8' : 'left-1'
                     }`}></div>
                   </button>
                 </div>
-                <p className="text-xs text-[#5A5A40]/60">
-                  এটি চালু করলে প্রাপক আপনার নাম দেখতে পাবেন না।
-                </p>
               </div>
 
               {/* Chocolate System */}
-              <div className="bg-white rounded-[32px] shadow-sm p-6 border border-[#5A5A40]/10 space-y-4">
-                <div className="flex items-center gap-2 text-[#5A5A40]">
-                  <Heart size={18} fill={chocolateAmount > 0 ? "currentColor" : "none"} />
-                  <span className="text-sm font-medium text-[#5A5A40]">ভালোবাসার চকলেট যোগ করুন</span>
+              <div className="card-nostalgic p-8 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-accent">
+                    <Heart size={20} fill={(chocolateAmount > 0 || customChocolate) ? "currentColor" : "none"} />
+                    <span className="text-sm font-bold uppercase tracking-widest">ভালোবাসার উপহার</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowCustom(!showCustom);
+                      setChocolateAmount(0);
+                    }}
+                    className="text-xs text-primary/40 underline font-bold"
+                  >
+                    {showCustom ? 'তালিকায় ফিরুন' : 'কাস্টম পরিমাণ'}
+                  </button>
                 </div>
-                <div className="flex gap-2">
-                  {[0, 5, 10, 20].map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => setChocolateAmount(amount)}
-                      className={`flex-1 py-2 rounded-xl border transition-all ${
-                        chocolateAmount === amount
-                          ? 'bg-[#5A5A40] text-white border-[#5A5A40]'
-                          : 'bg-[#f5f5f0] border-transparent text-[#5A5A40]'
-                      }`}
+
+                <AnimatePresence mode="wait">
+                  {!showCustom ? (
+                    <motion.div 
+                      key="presets"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className="flex gap-3"
                     >
-                      {amount === 0 ? 'না' : amount}
-                    </button>
-                  ))}
-                </div>
+                      {[0, 5, 10, 20].map((amount) => (
+                        <button
+                          key={amount}
+                          onClick={() => setChocolateAmount(amount)}
+                          className={`flex-1 py-3 rounded-none border transition-all font-display font-bold text-sm ${
+                            chocolateAmount === amount
+                              ? 'bg-primary text-white border-primary shadow-md'
+                              : 'bg-paper border-primary/10 text-primary/40 hover:border-primary/30'
+                          }`}
+                        >
+                          {amount === 0 ? 'না' : amount}
+                        </button>
+                      ))}
+                    </motion.div>
+                  ) : (
+                    <motion.div 
+                      key="custom"
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className="relative"
+                    >
+                      <input
+                        type="number"
+                        value={customChocolate}
+                        onChange={(e) => setCustomChocolate(e.target.value)}
+                        placeholder="পরিমাণ লিখুন..."
+                        className="input-field py-3 pr-12"
+                      />
+                      <Gift className="absolute right-4 top-1/2 -translate-y-1/2 text-primary/20" size={20} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
             <button
               onClick={handleSend}
               disabled={sending || !content}
-              className="w-full py-5 bg-[#5A5A40] text-white rounded-full font-bold text-xl hover:bg-[#4a4a34] transition-all shadow-lg flex items-center justify-center gap-3 disabled:opacity-50"
+              className="btn-primary w-full flex flex-col items-center justify-center gap-4 text-xl py-8 relative overflow-hidden group"
             >
-              {sending ? 'পাঠানো হচ্ছে...' : (
-                <>
+              <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+              
+              {sending ? (
+                <div className="relative z-10 w-full flex flex-col items-center gap-4">
+                  <div className="w-full h-1 bg-primary/10 relative overflow-hidden rounded-full max-w-xs">
+                    <div className="absolute inset-0 bg-accent w-1/3 animate-[car-drive_2s_linear_infinite]"></div>
+                  </div>
+                  <div className="flex items-center gap-4 animate-post-pulse">
+                    <Bike size={32} className="text-accent animate-bike-pedal" />
+                    <span className="font-display italic">চিঠি গন্তব্যের পথে পাঠানো হচ্ছে...</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative z-10 flex items-center gap-4">
                   <Send size={24} />
                   <span>চিঠি পাঠান</span>
-                </>
+                </div>
               )}
             </button>
           </motion.div>

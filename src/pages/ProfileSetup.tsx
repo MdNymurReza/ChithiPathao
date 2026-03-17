@@ -69,8 +69,8 @@ export const ProfileSetup: React.FC = () => {
         className="card-nostalgic max-w-md w-full"
       >
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-display font-bold text-primary mb-2">প্রোফাইল সেটআপ</h1>
-          <p className="text-primary/40 italic">আপনার তথ্যগুলো পূরণ করুন</p>
+          <h1 className="text-3xl font-bold text-primary mb-2">প্রোফাইল সেটআপ</h1>
+          <p className="text-slate-400">আপনার তথ্যগুলো পূরণ করুন</p>
         </div>
 
         {error && (
@@ -102,15 +102,15 @@ export const ProfileSetup: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center gap-4 p-5 bg-paper rounded-2xl border border-primary/5">
+          <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
             <input
               type="checkbox"
               id="allowSearch"
               checked={allowSearch}
               onChange={(e) => setAllowSearch(e.target.checked)}
-              className="w-6 h-6 rounded-lg text-primary focus:ring-primary border-primary/20"
+              className="w-5 h-5 rounded text-accent focus:ring-accent border-slate-300"
             />
-            <label htmlFor="allowSearch" className="text-sm font-medium text-primary/70 leading-tight">
+            <label htmlFor="allowSearch" className="text-sm font-bold text-slate-600 leading-tight">
               আমাকে ফোন নম্বর দিয়ে খুঁজে পাওয়া যাবে
             </label>
           </div>

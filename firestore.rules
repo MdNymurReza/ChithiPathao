@@ -109,8 +109,7 @@ service cloud.firestore {
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.chocolateBalance == 0;
       allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
                     request.resource.data.email == resource.data.email &&
-                    request.resource.data.createdAt == resource.data.createdAt &&
-                    request.resource.data.chocolateBalance == resource.data.chocolateBalance;
+                    request.resource.data.createdAt == resource.data.createdAt;
     }
 
     match /letters/{letterId} {
